@@ -1,9 +1,6 @@
-import React from 'react'
 
-const page = () => {
-  return (
-    <div>page</div>
-  )
+
+export default function Page() {
+  // … opcionalmente redirect a /dashboard
+  return null
 }
-
-export default page
