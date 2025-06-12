@@ -49,7 +49,6 @@ export default function Sidebar(): React.ReactElement {
 					</nav>
 				</div>
 				<div className="mt-10">
-					{/** @ts-ignore */}
 					<LogoutButton className="w-full text-sm px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition" />
 				</div>
 			</aside>

@@ -1,7 +1,3 @@
-import cloudinary from "./client";
-
-
-
 
 
 export async function uploadImageToCloudinary(file: File): Promise<string> {
