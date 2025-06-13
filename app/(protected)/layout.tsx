@@ -16,3 +16,10 @@ export default function ProtectedLayout({
     </div>
   );
 }
+
+// Añade esto si quieres que el layout redirija cuando se accede directamente a /
+export function Layout({ children }: { children: React.ReactNode }) {
+  // Si es necesario, agrega lógica para redirigir cuando la ruta es exactamente /app/(protected)
+
+  return <div>{children}</div>;
+}
