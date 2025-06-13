@@ -19,6 +19,7 @@ export default async function ProtectedLayout({
     redirect('/auth/login');
   }
 
+  
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar - importado directamente en el layout */}
