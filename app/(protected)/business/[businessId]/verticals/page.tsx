@@ -3,9 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import VerticalsList from "@/components/dashboard/VerticalsList";
 import BackButton from "@/components/BackButton";
 
-interface Props { params: { businessId: string } }
-
-export default async function VerticalPage({ params }: Props) {
+export default async function VerticalPage({
+  params,
+}: {
+  params: { businessId: string };
+}) {
   const supabase = await createClient();
   const { data: verticals } = await supabase
     .from("verticals")
