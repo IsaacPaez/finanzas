@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react"; // Eliminamos useEffect ya que no se usa
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import type { InventoryItem } from "./InventoryList";
 
 interface FormProps {
@@ -15,6 +16,7 @@ export default function InventoryForm({ businessId, item, onComplete }: FormProp
   const [unit, setUnit] = useState(item?.unit || "");
   const [comments, setComments] = useState(item?.comments || "");
   const [loading, setLoading] = useState(false);
+  const router = useRouter(); // Usamos el enrutador de Next.js
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +50,7 @@ export default function InventoryForm({ businessId, item, onComplete }: FormProp
     
     setLoading(false);
     onComplete();
+    router.refresh(); // Refrescar la página o la lista de inventario después de agregar/actualizar
   };
 
   return (

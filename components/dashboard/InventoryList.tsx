@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Modal from "./Modal";
 import InventoryForm from "./InventoryForm";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check } from "lucide-react"; // Eliminamos X ya que no se usa
 import { useRouter } from "next/navigation";
 
 export type InventoryItem = {
