@@ -1,8 +1,11 @@
 export async function sendPinWhatsApp({ phone, pin }: { phone: string; pin: string }) {
-  const response = await fetch("https://graph.facebook.com/v17.0/659221160602229/messages", {
+  const apiUrl = process.env.WHATSAPP_API_URL!;
+  const apiToken = process.env.WHATSAPP_API_TOKEN!;
+
+  const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
-      "Authorization": "Bearer EAAOQryFEidABO1ZBrHeTm7F2LtKHQsavL3K5gEcP9lsWYrTYXqCTTFQHiohBiPMZBhZCkskRRxfwCfe9ZB7QhEDqFGZAAUwvsrPqVVKbZAbiwsUEUzE2ZA2sjRe87AIfoPrJqXqfMlGIYUZBB5qjZA0FbuJCBJq3F8XoPgnK11cBQKTiUUnutyVe7Mfgg1j8ZB5wZDZD",
+      "Authorization": `Bearer ${apiToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
