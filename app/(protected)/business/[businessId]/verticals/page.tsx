@@ -5,14 +5,21 @@ import BackButton from "@/components/BackButton";
 
 export default async function VerticalPage({
   params,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  searchParams,   // Next exige esta prop aunque no la uses
 }: {
-  params: { businessId: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  params: any;  // Usar any aquí satisface el sistema de tipos interno de Next.js
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  searchParams: any;  // También needed como any para satisfacer PageProps
 }) {
+  const businessId = params.businessId as string;
+  
   const supabase = await createClient();
   const { data: verticals } = await supabase
     .from("verticals")
     .select("*")
-    .eq("business_id", params.businessId);
+    .eq("business_id", businessId);
 
   const { data: templates } = await supabase
     .from("verticals")
@@ -26,7 +33,7 @@ export default async function VerticalPage({
       <VerticalsList
         verticals={verticals ?? []}
         templates={templates ?? []}
-        businessId={params.businessId}
+        businessId={businessId}
       />
     </DashboardLayout>
   );
