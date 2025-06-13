@@ -7,15 +7,41 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 
-// Puedes usar una librería como recharts, chart.js o similar para el gráfico
-// import { LineChart } from "@/components/ui/line-chart";
+interface Business {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  image_url?: string;
+  unit?: string;
+}
+
+interface Metrics {
+  ingresos: number;
+  produccion: number;
+  gastos: number;
+  rentabilidad: number;
+}
+
+interface Movement {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+}
 
 export default function BusinessDashboardPage() {
   const { businessId } = useParams();
   const router = useRouter();
-  const [business, setBusiness] = useState<any>(null);
-  const [metrics, setMetrics] = useState<any>(null);
-  const [recentMovements, setRecentMovements] = useState<any[]>([]);
+
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [metrics, setMetrics] = useState<Metrics>({
+    ingresos: 0,
+    produccion: 0,
+    gastos: 0,
+    rentabilidad: 0,
+  });
+  const [recentMovements, setRecentMovements] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"today" | "month" | "custom">("month");
 
@@ -24,34 +50,28 @@ export default function BusinessDashboardPage() {
       setLoading(true);
       const supabase = createClient();
 
-      // 1. Info del negocio
-      const { data: businessData } = await supabase
+      const { data: b } = await supabase
         .from("businesses")
         .select("*")
         .eq("id", businessId)
         .single();
+      setBusiness(b);
 
-      // 2. Métricas clave (puedes hacer una función SQL o calcular aquí)
-      // Ejemplo: ingresos, gastos, producción, rentabilidad
-      // Aquí solo es un mock, deberás consultar tus tablas reales
-      const metricsData = {
+      // Mock de métricas; reemplazar por consulta real
+      setMetrics({
         ingresos: 1200000,
         produccion: 500,
         gastos: 800000,
         rentabilidad: 33.3,
-      };
+      });
 
-      // 3. Movimientos recientes
-      const { data: movementsData } = await supabase
+      const { data: m } = await supabase
         .from("movements")
         .select("*")
         .eq("business_id", businessId)
         .order("date", { ascending: false })
         .limit(5);
-
-      setBusiness(businessData);
-      setMetrics(metricsData);
-      setRecentMovements(movementsData || []);
+      setRecentMovements(m || []);
       setLoading(false);
     }
     fetchData();
