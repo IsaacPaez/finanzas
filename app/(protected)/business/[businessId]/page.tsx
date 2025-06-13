@@ -185,13 +185,13 @@ export default function BusinessDashboardPage() {
 
       {/* Botones de acción */}
       <div className="flex gap-4">
-        <Button onClick={() => router.push(`/dashboard/${businessId}/movements`)}>
+        <Button onClick={() => router.push(`/business/${businessId}/movements`)}>
           + Agregar movimiento
         </Button>
-        <Button variant="outline" onClick={() => router.push(`/dashboard/${businessId}/inventory`)}>
+        <Button variant="outline" onClick={() => router.push(`/business/${businessId}/inventory`)}>
           Inventario
         </Button>
-        <Button variant="outline" onClick={() => router.push(`/dashboard/${businessId}/verticals`)}>
+        <Button variant="outline" onClick={() => router.push(`/business/${businessId}/verticals`)}>
           Verticales
         </Button>
       </div>

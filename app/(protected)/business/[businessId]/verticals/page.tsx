@@ -1,9 +1,31 @@
-import React from 'react'
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { createClient } from "@/lib/supabase/server";
+import VerticalsList from "@/components/dashboard/VerticalsList";
+import BackButton from "@/components/BackButton";
 
-const page = () => {
+interface Props { params: { businessId: string } }
+
+export default async function VerticalPage({ params }: Props) {
+  const supabase = await createClient();
+  const { data: verticals } = await supabase
+    .from("verticals")
+    .select("*")
+    .eq("business_id", params.businessId);
+
+  const { data: templates } = await supabase
+    .from("verticals")
+    .select("*")
+    .eq("is_template", true);
+
   return (
-    <div>page</div>
-  )
+    <DashboardLayout>
+      <BackButton />
+      <h1 className="text-2xl font-semibold mb-4">Verticales de Negocio</h1>
+      <VerticalsList
+        verticals={verticals ?? []}
+        templates={templates ?? []}
+        businessId={params.businessId}
+      />
+    </DashboardLayout>
+  );
 }
-
-export default page
