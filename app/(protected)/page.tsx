@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 
-export default function ProtectedPage() {
-  // Redirigir a dashboard u otra página por defecto
+export default function ProtectedHomePage() {
   redirect('/dashboard');
+  
+  // Este código nunca se ejecutará debido al redirect
+  return null;
 }

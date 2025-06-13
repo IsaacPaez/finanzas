@@ -1,25 +1,35 @@
-'use client';
 
+import React from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Verificar autenticación
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/auth/login');
+  }
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="hidden md:block">
-        <Sidebar />
-      </aside>
-      <main className="flex-1 p-6">{children}</main>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar - importado directamente en el layout */}
+      <Sidebar />
+
+      {/* Contenido principal */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {children}
+        </main>
+      </div>
     </div>
   );
-}
-
-// Añade esto si quieres que el layout redirija cuando se accede directamente a /
-export function Layout({ children }: { children: React.ReactNode }) {
-  // Si es necesario, agrega lógica para redirigir cuando la ruta es exactamente /app/(protected)
-
-  return <div>{children}</div>;
 }
