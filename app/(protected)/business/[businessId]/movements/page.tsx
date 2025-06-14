@@ -15,6 +15,7 @@ interface Movement {
   amount: number;
   vertical_id: string | null;
   vertical?: { name: string } | null;
+  description?: string;
 }
 
 interface Vertical {
@@ -254,6 +255,7 @@ export default function MovementsPage() {
                 <th className="px-6 py-3 text-gray-500 font-medium uppercase text-xs">Fecha</th>
                 <th className="px-6 py-3 text-gray-500 font-medium uppercase text-xs">Tipo</th>
                 <th className="px-6 py-3 text-gray-500 font-medium uppercase text-xs">Vertical</th>
+                <th className="px-6 py-3 text-gray-500 font-medium uppercase text-xs">Descripción</th>
                 <th className="px-6 py-3 text-right text-gray-500 font-medium uppercase text-xs">Monto</th>
                 <th className="px-6 py-3 text-center text-gray-500 font-medium uppercase text-xs">Acciones</th>
               </tr>
@@ -261,11 +263,11 @@ export default function MovementsPage() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Cargando movimientos...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Cargando movimientos...</td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     No se encontraron movimientos para los filtros seleccionados.
                   </td>
                 </tr>
@@ -286,6 +288,9 @@ export default function MovementsPage() {
                     </td>
                     <td className="px-6 py-4">
                       {movement.vertical?.name || "Manual"}
+                    </td>
+                    <td className="px-6 py-4">
+                      {movement.description || "-"}
                     </td>
                     <td className={`px-6 py-4 text-right font-medium ${
                       movement.type === "ingreso" ? "text-green-600" : "text-red-600"
@@ -355,6 +360,14 @@ export default function MovementsPage() {
                         <span className="text-gray-500 mr-1">Vertical:</span>
                         <span className="font-medium">{movement.vertical?.name || "Manual"}</span>
                       </div>
+                      
+                      {/* Añadir la descripción */}
+                      {movement.description && (
+                        <div className="text-sm text-gray-700 mt-2">
+                          {movement.description}
+                        </div>
+                      )}
+                      
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => setEditingMovement(movement)}

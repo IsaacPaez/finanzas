@@ -28,62 +28,90 @@ export function SignUpForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
-  const [dialCode, setDialCode] = useState("");
+  const [dialCode, setDialCode] = useState("+34");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPinPopup, setShowPinPopup] = useState(false);
   const [pinInput, setPinInput] = useState("");
+  
+  // Guarda el PIN generado en un estado
+  const [generatedPin, setGeneratedPin] = useState("");
   const router = useRouter();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  // Paso 1: Solo validar y enviar PIN (sin crear usuario aún)
+  const handleSendPin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
     if (password !== repeatPassword) {
-      setError("Passwords do not match");
+      setError("Las contraseñas no coinciden");
       setIsLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          // Puedes omitir emailRedirectTo si no usas confirmación por correo
-          data: {
-            phone: `${dialCode}${phone}`,
-          },
-        },
-      });
-      if (error) throw error;
-      const userId = data.user?.id;
-      if (!userId) throw new Error("No user ID returned");
-
       // 1. Genera el PIN
       const pin = generatePin();
+      setGeneratedPin(pin);
 
-      // 2. Guarda el PIN y el teléfono en la tabla profiles
-      const { error: profileError } = await supabase.from("profiles").insert([
-        { id: userId, pin, phone: `${dialCode}${phone}` },
-      ]);
-      if (profileError) throw profileError;
-
-      // 3. Envía el PIN por WhatsApp
+      // 2. Envía el PIN por WhatsApp
       await sendPinWhatsApp({
         phone: `${dialCode}${phone}`,
         pin,
       });
 
-      // 4. Muestra el popup del PIN
+      // 3. Muestra el popup del PIN
       setShowPinPopup(true);
+    } catch (err) {
+      console.error("Error al enviar PIN:", err);
+      setError(err instanceof Error ? err.message : "Error al enviar el PIN");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // router.push("/auth/sign-up-success"); // Opcional, si quieres redirigir
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+  // Paso 2: Verifica PIN y si es correcto, crea el usuario
+  const handleVerifyAndCreateUser = async () => {
+    // Verifica que el PIN ingresado sea igual al generado
+    if (pinInput !== generatedPin) {
+      setError("PIN incorrecto");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createClient();
+
+      // Una vez verificado el PIN, crea el usuario
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            phone: `${dialCode}${phone}`,
+          },
+        },
+      });
+      
+      if (error) throw error;
+      
+      const userId = data.user?.id;
+      if (!userId) throw new Error("No se pudo crear el usuario");
+
+      // Guarda el teléfono en profiles (ya no es necesario guardar el PIN)
+      await supabase.from("profiles").insert([
+        { id: userId, phone: `${dialCode}${phone}` }
+      ]);
+
+      // Redirige al dashboard
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Error al crear usuario:", err);
+      setError(err instanceof Error ? err.message : "Error al crear la cuenta");
     } finally {
       setIsLoading(false);
     }
@@ -93,18 +121,19 @@ export function SignUpForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardTitle className="text-2xl">Registrarte</CardTitle>
+          <CardDescription>Crea una nueva cuenta</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignUp}>
+          {/* Cambia el onSubmit para llamar a handleSendPin en lugar de handleSignUp */}
+          <form onSubmit={handleSendPin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="m@ejemplo.com"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -112,7 +141,7 @@ export function SignUpForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Contraseña</Label>
                 </div>
                 <Input
                   id="password"
@@ -124,7 +153,7 @@ export function SignUpForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="repeat-password">Repeat Password</Label>
+                  <Label htmlFor="repeat-password">Repetir Contraseña</Label>
                 </div>
                 <Input
                   id="repeat-password"
@@ -156,65 +185,52 @@ export function SignUpForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating an account..." : "Sign up"}
+                {isLoading ? "Enviando código..." : "Continuar"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
+              ¿Ya tienes una cuenta?{" "}
               <Link href="/auth/login" className="underline underline-offset-4">
-                Login
+                Iniciar sesión
               </Link>
             </div>
           </form>
         </CardContent>
       </Card>
+      
+      {/* Popup para verificar PIN */}
       {showPinPopup && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded shadow-lg flex flex-col gap-4">
-            <h2 className="text-lg font-bold">
-              Ingresa el PIN enviado a tu WhatsApp
-            </h2>
-            <Input
-              type="text"
-              maxLength={6}
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              placeholder="PIN de 6 dígitos"
-            />
-            <Button
-              onClick={async () => {
-                setIsLoading(true);
-                const supabase = createClient();
-                // Get the current user ID from the session
-                const {
-                  data: { user },
-                  error: userError,
-                } = await supabase.auth.getUser();
-                if (userError || !user) {
-                  setIsLoading(false);
-                  setError("No se pudo obtener el usuario.");
-                  return;
-                }
-                const userId = user.id;
-                const { data, error } = await supabase
-                  .from("profiles")
-                  .select("pin")
-                  .eq("id", userId)
-                  .single();
-                setIsLoading(false);
-                if (error || !data || data.pin !== pinInput) {
-                  setError("PIN incorrecto");
-                } else {
-                  // PIN correcto, puedes redirigir o mostrar éxito
-                  setShowPinPopup(false);
-                  router.push("/dashboard");
-                }
-              }}
-              disabled={isLoading}
-            >
-              Verificar PIN
-            </Button>
-            {error && <div className="text-red-500">{error}</div>}
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Verificar tu número</h2>
+            <p className="mb-4">Hemos enviado un PIN a tu WhatsApp. Introdúcelo a continuación.</p>
+            <div className="mb-4">
+              <Input
+                type="text"
+                maxLength={6}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="PIN de 6 dígitos"
+                className="text-center text-xl tracking-widest"
+              />
+            </div>
+            {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPinPopup(false)}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              {/* Cambia para llamar a la nueva función de verificación y creación */}
+              <Button
+                onClick={handleVerifyAndCreateUser}
+                disabled={isLoading || pinInput.length !== 6}
+              >
+                {isLoading ? "Verificando..." : "Verificar y registrarme"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

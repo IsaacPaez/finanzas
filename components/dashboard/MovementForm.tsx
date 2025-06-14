@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-// Eliminamos useRouter ya que no se usa
 import { createClient } from "@/lib/supabase/client";
 
 interface Movement {
@@ -10,22 +9,24 @@ interface Movement {
   amount: number;
   vertical_id: string | null;
   vertical?: { name: string } | null;
+  description?: string; // Agregamos descripción
 }
 
 interface MovementFormProps {
   businessId: string;
-  onComplete?: (newMovement?: Movement) => void; // Tipamos correctamente en lugar de any
+  onComplete?: (newMovement?: Movement) => void;
   movement?: {
     id: string;
     date: string;
     type: "ingreso" | "gasto";
     amount: number;
     vertical_id: string | null;
+    description?: string; // Agregamos descripción
   };
 }
 
 export default function MovementForm({ businessId, onComplete, movement }: MovementFormProps) {
-  // Eliminamos router ya que no se usa
+  // Estado existente
   const [verticals, setVerticals] = useState<
     { id: string; name: string; variables_schema: { unit: string; price: number } }[]
   >([]);
@@ -35,6 +36,8 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
   const [manualAmount, setManualAmount] = useState<number | "">(movement?.amount || "");
   const [date, setDate] = useState(movement?.date || new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
+  // Nuevo estado para descripción
+  const [description, setDescription] = useState(movement?.description || "");
 
   // Carga verticals activas
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
 
       // Si estamos editando y hay vertical_id, calculamos la cantidad
       if (movement?.vertical_id && data) {
-        const vertical = data.find(v => v.id === movement.vertical_id);
+        const vertical = data.find((v) => v.id === movement.vertical_id);
         if (vertical && vertical.variables_schema.price) {
           setQty(movement.amount / vertical.variables_schema.price);
         }
@@ -76,6 +79,7 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
       date,
       type: movementType,
       amount,
+      description, // Agregamos descripción al objeto de datos
     };
 
     try {
@@ -87,9 +91,9 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
           .eq("id", movement.id)
           .select()
           .single();
-          
+
         if (error) throw error;
-        
+
         // Pasar el movimiento actualizado al callback
         onComplete?.({ ...data, vertical: selV ? { name: chosen?.name } : null });
       } else {
@@ -99,9 +103,9 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
           .insert([moveData])
           .select()
           .single();
-          
+
         if (error) throw error;
-        
+
         // Pasar el nuevo movimiento al callback
         onComplete?.({ ...data, vertical: selV ? { name: chosen?.name } : null });
       }
@@ -131,12 +135,23 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
         <label className="block text-sm font-medium mb-1">Tipo</label>
         <select
           value={movementType}
-          onChange={(e) => setMovementType(e.target.value as 'ingreso'|'gasto')}
+          onChange={(e) => setMovementType(e.target.value as "ingreso" | "gasto")}
           className="block w-full border rounded p-2"
         >
           <option value="ingreso">Ingreso</option>
           <option value="gasto">Gasto</option>
         </select>
+      </div>
+
+      {/* NUEVO CAMPO: Descripción */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Descripción</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Descripción del movimiento"
+          className="block w-full border rounded p-2 h-24 resize-none"
+        />
       </div>
 
       {/* Select Vertical */}
@@ -181,7 +196,7 @@ export default function MovementForm({ businessId, onComplete, movement }: Movem
             min={0}
             step="0.01"
             value={manualAmount}
-            onChange={(e) => setManualAmount(e.target.value === '' ? '' : +e.target.value)}
+            onChange={(e) => setManualAmount(e.target.value === "" ? "" : +e.target.value)}
             placeholder="Monto"
             className="block w-full border rounded p-2"
             required
