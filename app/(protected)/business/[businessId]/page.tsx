@@ -96,13 +96,13 @@ export default function BusinessDashboardPage() {
         setMovements(allMovements);
         
         if (allMovements.length > 0) {
-          const ingresos = allMovements
-            .filter(m => m.type === "ingreso")
-            .reduce((sum, m) => sum + m.amount, 0);
+            const ingresos: number = allMovements
+            .filter((m: Movement) => m.type === "ingreso")
+            .reduce((sum: number, m: Movement) => sum + m.amount, 0);
           
           const gastos = allMovements
-            .filter(m => m.type === "gasto")
-            .reduce((sum, m) => sum + m.amount, 0);
+            .filter((m: Movement) => m.type === "gasto")
+            .reduce((sum: number, m: Movement) => sum + m.amount, 0);
           
           const rentabilidad = gastos > 0 ? Math.round((ingresos - gastos) / gastos * 100) : 0;
           

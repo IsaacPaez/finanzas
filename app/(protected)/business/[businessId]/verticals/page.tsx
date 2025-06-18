@@ -1,39 +1,52 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { createClient } from "@/lib/supabase/server";
 import VerticalsList from "@/components/dashboard/VerticalsList";
-import BackButton from "@/components/BackButton";
+import Link from "next/link";
 
-export default async function VerticalPage({
+export default async function VerticalsPage({
   params,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  searchParams,   // Next exige esta prop aunque no la uses
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  params: any;  // Usar any aquí satisface el sistema de tipos interno de Next.js
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  searchParams: any;  // También needed como any para satisfacer PageProps
+  params: { businessId: string };
 }) {
-  const businessId = params.businessId as string;
-  
   const supabase = await createClient();
+  
+  // Obtener verticales activas del negocio
   const { data: verticals } = await supabase
     .from("verticals")
     .select("*")
-    .eq("business_id", businessId);
-
+    .eq("business_id", params.businessId)
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+  
+  // Obtener plantillas de verticales
   const { data: templates } = await supabase
     .from("verticals")
     .select("*")
-    .eq("is_template", true);
+    .eq("is_template", true)
+    .order("name", { ascending: true });
 
   return (
     <DashboardLayout>
-      <BackButton />
-      <h1 className="text-2xl font-semibold mb-4">Verticales de Negocio</h1>
-      <VerticalsList
-        verticals={verticals ?? []}
-        templates={templates ?? []}
-        businessId={businessId}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          {/* Reemplazar BackButton con un Link explícito */}
+          <Link 
+            href={`/business/${params.businessId}`}
+            className="text-blue-600 hover:underline mb-2 inline-block"
+          >
+            &larr; Volver al negocio
+          </Link>
+          <h1 className="text-2xl font-bold mt-2">Verticales Activos</h1>
+          <p className="text-gray-500">
+            Administra las líneas de negocio de tu empresa
+          </p>
+        </div>
+      </div>
+      
+      <VerticalsList 
+        verticals={verticals || []} 
+        templates={templates || []} 
+        businessId={params.businessId}
       />
     </DashboardLayout>
   );

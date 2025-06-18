@@ -1,19 +1,18 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Modal from "./Modal";
+import DairyEditor from "./vertical-templates/DairyEditor";
+import EggsEditor from "./vertical-templates/EggsEditor";
 
 // Definir interfaces para tipos
 interface Vertical {
   id: string;
   name: string;
   description: string;
-  variables_schema: {
-    unit: string;
-    price: number;
-  };
+  variables_schema: any; // admite DairySchema, EggsSchema o esquema genérico
   active: boolean;
   is_template: boolean;
 }
@@ -26,11 +25,13 @@ interface VerticalProps {
   businessId: string;
 }
 
+// Actualizar la interfaz FormData
 interface FormData {
   name: string;
   description: string;
   unit: string;
   price: number;
+  variables_schema?: any; // Para almacenar el esquema completo especializado
 }
 
 export default function VerticalsList({ verticals, templates, businessId }: VerticalProps) {
@@ -57,6 +58,68 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
     });
   };
 
+  // Función para renderizar el editor específico según el tipo de vertical
+  const renderSpecializedEditor = (vertical: Vertical) => {
+    const schema = vertical.variables_schema;
+    
+    if (schema?.type === "dairy") {
+      return (
+        <DairyEditor 
+          schema={schema} 
+          onChange={(newSchema) => {
+            setFormData({
+              ...formData,
+              variables_schema: newSchema
+            });
+          }}
+        />
+      );
+    }
+    
+    if (schema?.type === "eggs") {
+      return (
+        <EggsEditor 
+          schema={schema}
+          onChange={(newSchema) => {
+            setFormData({
+              ...formData,
+              variables_schema: newSchema
+            });
+          }}
+        />
+      );
+    }
+    
+    // Editor genérico por defecto
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Unidad</label>
+          <input
+            type="text"
+            value={formData.unit}
+            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+            className="w-full border rounded-md p-2"
+            placeholder="kg, litros, unidades..."
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Precio por unidad</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+            className="w-full border rounded-md p-2"
+            required
+          />
+        </div>
+      </div>
+    );
+  };
+
   const handleEditClick = (vertical: Vertical) => {
     setEditingVertical(vertical);
     setFormData({
@@ -64,6 +127,7 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
       description: vertical.description || "",
       unit: vertical.variables_schema?.unit || "",
       price: vertical.variables_schema?.price || 0,
+      variables_schema: vertical.variables_schema // Guardar el schema completo
     });
   };
 
@@ -94,80 +158,110 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
     setLoading(true);
     
     const supabase = createClient();
-    const variables_schema = {
+    
+    // Crear un schema básico si no existe uno especializado
+    const variables_schema = formData.variables_schema || {
       unit: formData.unit,
       price: Number(formData.price)
     };
     
-    if (editingVertical) {
-      // Actualizar vertical existente
-      const { error } = await supabase
-        .from("verticals")
-        .update({
-          name: formData.name,
-          description: formData.description,
-          variables_schema
-        })
-        .eq("id", editingVertical.id);
-        
-      if (error) {
-        console.error("Error al actualizar:", error);
-        alert("Error al actualizar el vertical");
-      } else {
-        setEditingVertical(null);
-        router.refresh();
-      }
-    } else {
-      // Crear nuevo vertical
-      const { error } = await supabase
-        .from("verticals")
-        .insert([{
-          business_id: businessId,
-          name: formData.name,
-          description: formData.description,
-          active: true,
-          is_template: false,
-          variables_schema
-        }]);
-        
-      if (error) {
-        console.error("Error al crear:", error);
-        alert("Error al crear el vertical");
-      } else {
-        setShowAddModal(false);
-        router.refresh();
-      }
+    // Asegurarse de actualizar las propiedades básicas si existe un schema especializado
+    if (variables_schema) {
+      variables_schema.unit = formData.unit;
+      variables_schema.price = Number(formData.price);
     }
     
-    resetForm();
-    setLoading(false);
+    try {
+      if (editingVertical) {
+        // Actualizar vertical existente
+        const { error } = await supabase
+          .from("verticals")
+          .update({
+            name: formData.name,
+            description: formData.description,
+            variables_schema
+          })
+          .eq("id", editingVertical.id);
+          
+        if (error) throw error;
+        setEditingVertical(null);
+      } else {
+        // Crear nuevo vertical
+        const { error } = await supabase
+          .from("verticals")
+          .insert([{
+            business_id: businessId,
+            name: formData.name,
+            description: formData.description,
+            active: true,
+            is_template: false,
+            variables_schema
+          }]);
+          
+        if (error) throw error;
+        setShowAddModal(false);
+      }
+      
+      router.refresh();
+      resetForm();
+    } catch (error) {
+      console.error("Error al guardar vertical:", error);
+      
+      // Mostrar error específico
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Error desconocido al guardar el vertical";
+      
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addFromTemplate = async (template: Vertical) => {
     setLoading(true);
-    const supabase = createClient();
     
-    // Crear copia del template
-    const { error } = await supabase
-      .from("verticals")
-      .insert([{
-        business_id: businessId,
-        name: template.name,
-        description: template.description,
-        active: true,
-        is_template: false,
-        variables_schema: template.variables_schema
-      }]);
+    try {
+      // Prepara el esquema según el tipo de plantilla
+      let modifiedSchema = { ...template.variables_schema };
       
-    if (error) {
-      console.error("Error al crear desde template:", error);
-      alert("Error al crear desde template");
-    } else {
+      if (template.variables_schema.type === "dairy") {
+        modifiedSchema = {
+          ...modifiedSchema,
+          inventory: {
+            total: 0,
+            items: []
+          }
+        };
+      } else if (template.variables_schema.type === "eggs") {
+        modifiedSchema = {
+          ...modifiedSchema,
+          inventory: {
+            total: 0
+          },
+          productionTypes: template.variables_schema.productionTypes || []
+        };
+      }
+      
+      // Cargar los datos de la plantilla en el formulario
+      setFormData({
+        name: template.name,
+        description: template.description || "",
+        unit: template.variables_schema?.unit || "",
+        price: template.variables_schema?.price || 0,
+        variables_schema: modifiedSchema
+      });
+      
+      // Cerrar modal de plantillas y abrir modal de edición
       setShowTemplateModal(false);
-      router.refresh();
+      setShowAddModal(true);
+      
+    } catch (error) {
+      console.error("Error al cargar plantilla:", error);
+      alert("Error al cargar la plantilla");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -241,6 +335,14 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center space-x-4">
+                      {/* Botón para ver detalle */}
+                      <button
+                        onClick={() => router.push(`/business/${businessId}/verticals/${vertical.id}`)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Ver detalle"
+                      >
+                        <Eye size={16} />
+                      </button>
                       <button
                         onClick={() => handleEditClick(vertical)}
                         className="text-blue-600 hover:text-blue-800"
@@ -297,31 +399,37 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
               rows={3}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Unidad</label>
-              <input
-                type="text"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full border rounded-md p-2"
-                placeholder="kg, litros, unidades..."
-                required
-              />
+          
+          {/* Aquí llamamos a nuestro renderizador especializado en lugar del grid fijo */}
+          {editingVertical ? 
+            renderSpecializedEditor(editingVertical) : 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Unidad</label>
+                <input
+                  type="text"
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className="w-full border rounded-md p-2"
+                  placeholder="kg, litros, unidades..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Precio por unidad</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                  className="w-full border rounded-md p-2"
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Precio por unidad</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                className="w-full border rounded-md p-2"
-                required
-              />
-            </div>
-          </div>
+          }
+          
           <button
             type="submit"
             disabled={loading}

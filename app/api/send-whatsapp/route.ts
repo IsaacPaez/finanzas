@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     // Obtener el cuerpo de la petición
     const body = await request.json();
-    const { phone, pin } = body;
+    const { phone, pin, buttonText = pin } = body; // Permitir personalizar el texto del botón, por defecto usar PIN
     
     // Registro para depuración
     console.log("Petición recibida:", { phone, pin });
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
               sub_type: "url",
               index: "0",
               parameters: [
-                { type: "text", text: "token123" }
+                { type: "text", text: buttonText }
               ]
             }
           ]
@@ -94,10 +94,16 @@ export async function POST(request: Request) {
     }
     
     return NextResponse.json({ success: true, data: responseData });
-  } catch (error: any) {
+  } catch (error: unknown) { // Cambiado de 'any' a 'unknown'
     console.error("Error en el servidor:", error);
+    
+    // Necesitamos verificar el tipo para acceder a propiedades de manera segura
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Error interno del servidor";
+      
     return NextResponse.json(
-      { message: error.message || "Error interno del servidor" },
+      { message: errorMessage },
       { status: 500 }
     );
   }
