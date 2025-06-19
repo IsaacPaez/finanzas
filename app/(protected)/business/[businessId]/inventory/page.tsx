@@ -6,14 +6,13 @@ import BackButton from "@/components/BackButton";
 
 export default async function InventoryPage({
   params,
-  searchParams,
 }: {
-  params: Promise<{ businessId: string; }>; // ✅ Cambiar a Promise
-  searchParams: Promise<any>; // ✅ También searchParams es Promise en Next.js 15
+  params: Promise<{ businessId: string; }>; // ✅ Solo params necesario
+  // ✅ Removido searchParams ya que no se usa
 }) {
-  // ✅ Await both
+  // ✅ Solo await params
   const { businessId } = await params;
-  const resolvedSearchParams = await searchParams;
+  // ✅ Removido resolvedSearchParams
   
   const supabase = await createClient();
   const { data: inventoryItems } = await supabase
