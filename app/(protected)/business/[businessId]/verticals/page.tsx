@@ -6,15 +6,18 @@ import Link from "next/link";
 export default async function VerticalsPage({
   params,
 }: {
-  params: { businessId: string };
+  params: Promise<{ businessId: string; }> // ✅ Cambiar a Promise
 }) {
+  // ✅ Await the params
+  const { businessId } = await params;
+  
   const supabase = await createClient();
   
   // Obtener verticales activas del negocio
   const { data: verticals } = await supabase
     .from("verticals")
     .select("*")
-    .eq("business_id", params.businessId)
+    .eq("business_id", businessId)
     .eq("active", true)
     .order("created_at", { ascending: false });
   
@@ -31,7 +34,7 @@ export default async function VerticalsPage({
         <div>
           {/* Reemplazar BackButton con un Link explícito */}
           <Link 
-            href={`/business/${params.businessId}`}
+            href={`/business/${businessId}`}
             className="text-blue-600 hover:underline mb-2 inline-block"
           >
             &larr; Volver al negocio
@@ -46,7 +49,7 @@ export default async function VerticalsPage({
       <VerticalsList 
         verticals={verticals || []} 
         templates={templates || []} 
-        businessId={params.businessId}
+        businessId={businessId}
       />
     </DashboardLayout>
   );

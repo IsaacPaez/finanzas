@@ -36,7 +36,10 @@ interface Movement {
 }
 
 export default function BusinessDashboardPage() {
-  const { businessId } = useParams();
+  // Si usas useParams(), no hay cambios necesarios en client components
+  const params = useParams();
+  const businessId = params.businessId as string;
+  
   const router = useRouter();
 
   const [business, setBusiness] = useState<Business | null>(null);
