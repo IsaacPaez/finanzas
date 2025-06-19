@@ -6,27 +6,30 @@ import Link from "next/link";
 export default async function VerticalDetailPage({
   params,
 }: {
-  params: { businessId: string; verticalId: string };
+  params: Promise<{ businessId: string; verticalId: string }> // ✅ Cambiar a Promise
 }) {
+  // ✅ Await the params
+  const { businessId, verticalId } = await params;
+
   const supabase = await createClient();
   const { data: vertical } = await supabase
     .from("verticals")
     .select("*")
-    .eq("id", params.verticalId)
+    .eq("id", verticalId)
     .single();
 
   const { data: movements } = await supabase
     .from("movements")
     .select("*")
-    .eq("vertical_id", params.verticalId)
+    .eq("vertical_id", verticalId)
     .order("date", { ascending: false })
     .limit(100);
 
   return (
     <DashboardLayout>
       <div className="mb-6">
-        <Link 
-          href={`/business/${params.businessId}/verticals`}
+        <Link
+          href={`/business/${businessId}/verticals`}
           className="text-blue-600 hover:underline mb-2 inline-block"
         >
           &larr; Volver a verticales
@@ -38,7 +41,6 @@ export default async function VerticalDetailPage({
       <VerticalDetail
         vertical={vertical}
         movements={movements || []}
-        businessId={params.businessId}
       />
     </DashboardLayout>
   );
