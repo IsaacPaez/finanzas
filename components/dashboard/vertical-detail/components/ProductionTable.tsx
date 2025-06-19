@@ -1,6 +1,8 @@
+import { Movement, VerticalSchema } from "../types/interfaces";
+
 interface ProductionTableProps {
-  filteredMovements: any[];
-  schema: any;
+  filteredMovements: Movement[];
+  schema: VerticalSchema;
   stats: {
     totalProduction: number;
     totalRevenue: number;
@@ -30,9 +32,16 @@ export default function ProductionTable({ filteredMovements, schema, stats }: Pr
         </thead>
         <tbody>
           {filteredMovements.map((m) => {
-            const quantity = m.production_data?.total_liters || 
-                             m.production_data?.total_eggs || 
-                             0;
+            const quantity = (() => {
+              if (!m.production_data) return 0;
+              if (schema.type === 'dairy') {
+                return m.production_data.total_liters || 0;
+              } else if (schema.type === 'eggs') {
+                return m.production_data.total_eggs || 0;
+              }
+              return 0;
+            })();
+            
             const unitPrice = quantity > 0 ? m.amount / quantity : schema.price;
             
             return (

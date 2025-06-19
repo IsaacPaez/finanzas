@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { Vertical } from "../types/interfaces"; // ✅ Importar interface tipada
 
-export const useVerticalData = (vertical: any) => {
+export const useVerticalData = (vertical: Vertical) => { // ✅ Usar Vertical en lugar de any
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [schema, setSchema] = useState(vertical?.variables_schema || {});

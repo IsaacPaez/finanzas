@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { Movement, VerticalSchema } from "../types/interfaces";
 
 ChartJS.register(
   CategoryScale,
@@ -21,8 +22,8 @@ ChartJS.register(
 );
 
 interface ProductionChartProps {
-  filteredMovements: any[]; // ✅ Debe ser filteredMovements, no movements
-  schema: any;
+  filteredMovements: Movement[];
+  schema: VerticalSchema;
 }
 
 export default function ProductionChart({ filteredMovements, schema }: ProductionChartProps) {
@@ -39,7 +40,18 @@ export default function ProductionChart({ filteredMovements, schema }: Productio
       datasets: [
         {
           label: `Producción (${schema.unit})`,
-          data: data.map(m => Number(m.production_data?.total_liters || m.production_data?.total_eggs || 0)),
+          data: data.map(m => {
+            const productionData = m.production_data;
+            if (!productionData) return 0;
+            
+            // Usar el tipo correcto según el schema
+            if (schema.type === 'dairy') {
+              return Number(productionData.total_liters || 0);
+            } else if (schema.type === 'eggs') {
+              return Number(productionData.total_eggs || 0);
+            }
+            return 0;
+          }),
           borderColor: 'rgb(53, 162, 235)',
           backgroundColor: 'rgba(53, 162, 235, 0.5)',
           tension: 0.2
@@ -72,11 +84,19 @@ export default function ProductionChart({ filteredMovements, schema }: Productio
         type: 'linear' as const,
         display: true,
         position: 'left' as const,
+        title: {
+          display: true,
+          text: `Producción (${schema.unit})`
+        }
       },
       y1: {
         type: 'linear' as const,
         display: true,
         position: 'right' as const,
+        title: {
+          display: true,
+          text: 'Ingreso ($)'
+        },
         grid: {
           drawOnChartArea: false,
         },
@@ -90,9 +110,15 @@ export default function ProductionChart({ filteredMovements, schema }: Productio
       {filteredMovements.length > 1 ? (
         <Line data={prepareChartData()} options={chartOptions} />
       ) : (
-        <p className="text-center py-4 text-gray-500">
-          Se necesitan al menos 2 registros para mostrar el gráfico
-        </p>
+        <div className="text-center py-8">
+          <div className="text-gray-400 mb-2">📊</div>
+          <p className="text-gray-500 text-sm">
+            Se necesitan al menos 2 registros para mostrar el gráfico
+          </p>
+          <p className="text-gray-400 text-xs mt-1">
+            Registros actuales: {filteredMovements.length}
+          </p>
+        </div>
       )}
     </div>
   );

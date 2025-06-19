@@ -1,9 +1,10 @@
 import { useCowAnalysis } from "../hooks/useCowAnalysis";
 import CowAnalysisModal from "../CowAnalysisModal";
+import { VerticalSchema, Vertical, CowStats } from "../types/interfaces";
 
 interface CowProductionTableProps {
-  schema: any;
-  vertical: any;
+  schema: VerticalSchema;
+  vertical: Vertical;
 }
 
 export default function CowProductionTable({ schema, vertical }: CowProductionTableProps) {
@@ -47,7 +48,7 @@ export default function CowProductionTable({ schema, vertical }: CowProductionTa
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {cowStats.map((cow: any) => (
+                {cowStats.map((cow: CowStats) => (
                   <tr key={cow.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                       <div className="flex items-center">

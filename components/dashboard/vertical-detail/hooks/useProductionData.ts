@@ -1,48 +1,74 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo } from "react"; // ✅ Removido useEffect
+import { VerticalSchema, Movement, Vertical } from "../types/interfaces";
 
-export const useProductionData = (schema: any, movements: any[], vertical: any) => {
+interface ProductionStats {
+  totalProduction: number;
+  totalRevenue: number;
+  averagePrice: number;
+}
+
+export function useProductionData(
+  schema: VerticalSchema, 
+  movements: Movement[], 
+  vertical: Vertical
+) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // Filtrar movimientos según los criterios
+  // Filtrar movimientos de producción para esta vertical
+  const productionMovements = useMemo(() => {
+    return movements.filter(m => 
+      m.vertical_id === vertical.id && 
+      m.type === 'ingreso' && 
+      m.production_data
+    );
+  }, [movements, vertical.id]);
+
+  // Aplicar filtros
   const filteredMovements = useMemo(() => {
-    return movements.filter(m => {
-      // Solo ingresos
-      if (m.type !== 'ingreso') return false;
-      
-      // Filtro de fecha
-      if (startDate && new Date(m.date) < new Date(startDate)) return false;
-      if (endDate && new Date(m.date) > new Date(endDate)) return false;
-      
-      // Filtro de precio
-      if (minPrice && m.amount < Number(minPrice)) return false;
-      if (maxPrice && m.amount > Number(maxPrice)) return false;
-      
-      return true;
-    });
-  }, [movements, startDate, endDate, minPrice, maxPrice]);
+    let filtered = [...productionMovements];
 
-  // Calcular estadísticas básicas
-  const stats = useMemo(() => {
-    const calculateTotalProduction = () => {
-      if (schema.type === "dairy" && schema.cowProductionHistory && schema.cowProductionHistory.length > 0) {
-        return schema.cowProductionHistory.reduce((sum: number, record: any) => {
-          return sum + Number(record.total_liters || 0);
-        }, 0);
-      } else if (schema.type === "eggs" && schema.eggProductionHistory && schema.eggProductionHistory.length > 0) {
-        return schema.eggProductionHistory.reduce((sum: number, record: any) => {
-          return sum + Number(record.total_eggs || 0);
-        }, 0);
-      }
-      return 0;
-    };
+    if (startDate) {
+      filtered = filtered.filter(m => new Date(m.date) >= new Date(startDate));
+    }
 
-    const totalProduction = calculateTotalProduction();
-    const totalRevenue = filteredMovements
-      .filter(m => m.vertical_id === vertical.id)
-      .reduce((sum, m) => sum + Number(m.amount || 0), 0);
+    if (endDate) {
+      filtered = filtered.filter(m => new Date(m.date) <= new Date(endDate));
+    }
+
+    if (minPrice) {
+      const minPriceNum = Number(minPrice);
+      filtered = filtered.filter(m => {
+        const quantity = getQuantityFromMovement(m, schema);
+        const unitPrice = quantity > 0 ? m.amount / quantity : 0;
+        return unitPrice >= minPriceNum;
+      });
+    }
+
+    if (maxPrice) {
+      const maxPriceNum = Number(maxPrice);
+      filtered = filtered.filter(m => {
+        const quantity = getQuantityFromMovement(m, schema);
+        const unitPrice = quantity > 0 ? m.amount / quantity : 0;
+        return unitPrice <= maxPriceNum;
+      });
+    }
+
+    return filtered;
+  }, [productionMovements, startDate, endDate, minPrice, maxPrice, schema]);
+
+  // Calcular estadísticas
+  const stats = useMemo((): ProductionStats => {
+    const totalProduction = filteredMovements.reduce((sum, m) => {
+      return sum + getQuantityFromMovement(m, schema);
+    }, 0);
+
+    const totalRevenue = filteredMovements.reduce((sum, m) => {
+      return sum + Number(m.amount || 0);
+    }, 0);
+
     const averagePrice = totalProduction > 0 ? totalRevenue / totalProduction : schema.price || 0;
 
     return {
@@ -50,7 +76,7 @@ export const useProductionData = (schema: any, movements: any[], vertical: any) 
       totalRevenue,
       averagePrice
     };
-  }, [schema, filteredMovements, vertical.id]);
+  }, [filteredMovements, schema]);
 
   const clearFilters = () => {
     setStartDate("");
@@ -72,4 +98,17 @@ export const useProductionData = (schema: any, movements: any[], vertical: any) 
     stats,
     clearFilters
   };
-};
+}
+
+// Helper function para extraer cantidad según el tipo de schema
+function getQuantityFromMovement(movement: Movement, schema: VerticalSchema): number {
+  if (!movement.production_data) return 0;
+  
+  if (schema.type === 'dairy') {
+    return movement.production_data.total_liters || 0;
+  } else if (schema.type === 'eggs') {
+    return movement.production_data.total_eggs || 0;
+  }
+  
+  return 0;
+}

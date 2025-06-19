@@ -20,7 +20,7 @@ export async function sendPinWhatsApp({ phone, pin }: { phone: string; pin: stri
     }
     
     return await response.json();
-  } catch (error: any) {
+  } catch (error: unknown) { // ✅ Cambiar any por unknown
     console.error("Error al enviar PIN por WhatsApp:", error);
     throw error; // Re-lanzar el error para manejarlo en el componente
   }

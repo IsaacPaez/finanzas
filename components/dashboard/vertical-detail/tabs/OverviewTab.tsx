@@ -1,10 +1,12 @@
 import { useCowAnalysis } from "../hooks/useCowAnalysis";
 import CowAnalysisModal from "../CowAnalysisModal";
+import StatsCards from "../components/StatsCards";
+import { Movement, VerticalSchema, Vertical } from "../types/interfaces";
 
 interface OverviewTabProps {
-  vertical: any;
-  schema: any;
-  movements: any[];
+  vertical: Vertical;
+  schema: VerticalSchema;
+  movements: Movement[];
 }
 
 export default function OverviewTab({ vertical, schema, movements }: OverviewTabProps) {
@@ -17,47 +19,16 @@ export default function OverviewTab({ vertical, schema, movements }: OverviewTab
     closeCowModal
   } = useCowAnalysis(schema);
 
-  // Calcular estadísticas básicas
-  const calculateTotalProduction = () => {
-    if (schema.type === "dairy" && schema.cowProductionHistory && schema.cowProductionHistory.length > 0) {
-      return schema.cowProductionHistory.reduce((sum: number, record: any) => {
-        return sum + Number(record.total_liters || 0);
-      }, 0);
-    } else if (schema.type === "eggs" && schema.eggProductionHistory && schema.eggProductionHistory.length > 0) {
-      return schema.eggProductionHistory.reduce((sum: number, record: any) => {
-        return sum + Number(record.total_eggs || 0);
-      }, 0);
-    }
-    return 0;
-  };
-
-  const totalProduction = calculateTotalProduction();
-  const totalRevenue = movements
-    .filter(m => m.vertical_id === vertical.id)
-    .reduce((sum, m) => sum + Number(m.amount || 0), 0);
-  const averagePrice = totalProduction > 0 ? totalRevenue / totalProduction : schema.price || 0;
-
   return (
     <div className="space-y-4">
-      {/* Estadísticas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gray-50 p-4 rounded">
-          <h3 className="text-sm font-medium text-gray-500">Precio por {schema.unit}</h3>
-          <p className="text-2xl font-bold">${schema.price?.toFixed(2)}</p>
-        </div>
-        
-        <div className="bg-gray-50 p-4 rounded">
-          <h3 className="text-sm font-medium text-gray-500">Producción Total</h3>
-          <p className="text-2xl font-bold">{totalProduction.toFixed(1)} {schema.unit}</p>
-        </div>
-        
-        <div className="bg-gray-50 p-4 rounded">
-          <h3 className="text-sm font-medium text-gray-500">Precio Promedio</h3>
-          <p className="text-2xl font-bold">${averagePrice.toFixed(2)}</p>
-        </div>
-      </div>
+      {/* Estadísticas principales usando el componente tipado */}
+      <StatsCards 
+        schema={schema} 
+        movements={movements} 
+        vertical={vertical} 
+      />
 
-      {/* Tabla de producción por vaca (solo para dairy) */}
+      {/* Resto del contenido... */}
       {schema.type === "dairy" && (
         <div className="bg-gray-50 p-4 rounded">
           <h3 className="text-base font-medium mb-2">Producción por Vaca</h3>
@@ -88,7 +59,7 @@ export default function OverviewTab({ vertical, schema, movements }: OverviewTab
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {cowStats.map((cow: any) => (
+                  {cowStats.map((cow) => (
                     <tr key={cow.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                         <div className="flex items-center">
@@ -137,39 +108,6 @@ export default function OverviewTab({ vertical, schema, movements }: OverviewTab
           ) : (
             <p className="text-gray-500 py-4 text-center">No hay datos de producción disponibles</p>
           )}
-        </div>
-      )}
-
-      {/* Tabla de tipos de huevos (solo para eggs) */}
-      {schema.type === "eggs" && schema.productionTypes && (
-        <div className="bg-gray-50 p-4 rounded">
-          <h3 className="text-base font-medium mb-2">Tipos de Huevos</h3>
-          <div className="overflow-hidden rounded border">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Precio</th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {schema.productionTypes.map((type: any) => (
-                  <tr key={type.id}>
-                    <td className="px-3 py-2 text-sm font-medium">{type.name}</td>
-                    <td className="px-3 py-2 text-sm text-right">${type.price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-center">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        type.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {type.active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 

@@ -1,18 +1,63 @@
 import { useState } from "react";
-import DairyEditor from "../editors/DairyEditor";
-import EggsEditor from "../editors/EggsEditor";
+import DairyEditor from "../../vertical-templates/DairyEditor";
+import EggsEditor from "../../vertical-templates/EggsEditor";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { 
+  VerticalSchema, 
+  DairySchema, 
+  EggSchema, 
+  DairyTemplateConfig,
+  EggTemplateConfig 
+} from "../types/interfaces";
 
 interface ConfigTabProps {
-  schema: any;
+  schema: VerticalSchema;
   verticalId: string;
   loading: boolean;
 }
 
 export default function ConfigTab({ schema: initialSchema, verticalId, loading }: ConfigTabProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [schema, setSchema] = useState(initialSchema);
+  const [schema, setSchema] = useState(() => {
+    // Normalizar schema según el tipo para asegurar que tenga todas las propiedades
+    if (initialSchema.type === 'dairy') {
+      const dairySchema = initialSchema as DairySchema;
+      return {
+        ...dairySchema,
+        templateConfig: {
+          lastUpdated: new Date().toISOString(),
+          version: "1.0.0",
+          customFields: {},
+          trackIndividualProduction: true,
+          productionFrequency: 'daily' as const,
+          milkingTimes: 2,
+          qualityMetrics: false,
+          ...dairySchema.templateConfig
+        } as DairyTemplateConfig,
+        inventory: dairySchema.inventory || { items: [] }
+      } as DairySchema;
+    } else if (initialSchema.type === 'eggs') {
+      const eggSchema = initialSchema as EggSchema;
+      return {
+        ...eggSchema,
+        templateConfig: {
+          lastUpdated: new Date().toISOString(),
+          version: "1.0.0",
+          customFields: {},
+          trackByType: true,
+          eggGradingEnabled: false,
+          collectionFrequency: 'daily' as const,
+          qualityControl: false,
+          ...eggSchema.templateConfig
+        } as EggTemplateConfig,
+        inventory: eggSchema.inventory || { total: 0 },
+        productionTypes: eggSchema.productionTypes || []
+      } as EggSchema;
+    }
+    
+    return initialSchema;
+  });
   const [saving, setSaving] = useState(false);
   const router = useRouter();
 
@@ -21,9 +66,18 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
     try {
       const supabase = createClient();
       
+      // Actualizar templateConfig antes de guardar
+      const updatedSchema = {
+        ...schema,
+        templateConfig: {
+          ...schema.templateConfig,
+          lastUpdated: new Date().toISOString()
+        }
+      };
+      
       const { error } = await supabase
         .from('verticals')
-        .update({ variables_schema: schema })
+        .update({ variables_schema: updatedSchema })
         .eq('id', verticalId);
         
       if (error) throw error;
@@ -40,31 +94,89 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
   };
 
   const handleCancel = () => {
-    setSchema(initialSchema); // Restaurar estado original
+    // Restaurar el estado inicial normalizado
+    if (initialSchema.type === 'dairy') {
+      const dairySchema = initialSchema as DairySchema;
+      setSchema({
+        ...dairySchema,
+        templateConfig: {
+          lastUpdated: new Date().toISOString(),
+          version: "1.0.0",
+          customFields: {},
+          trackIndividualProduction: true,
+          productionFrequency: 'daily' as const,
+          milkingTimes: 2,
+          qualityMetrics: false,
+          ...dairySchema.templateConfig
+        } as DairyTemplateConfig,
+        inventory: dairySchema.inventory || { items: [] }
+      } as DairySchema);
+    } else if (initialSchema.type === 'eggs') {
+      const eggSchema = initialSchema as EggSchema;
+      setSchema({
+        ...eggSchema,
+        templateConfig: {
+          lastUpdated: new Date().toISOString(),
+          version: "1.0.0",
+          customFields: {},
+          trackByType: true,
+          eggGradingEnabled: false,
+          collectionFrequency: 'daily' as const,
+          qualityControl: false,
+          ...eggSchema.templateConfig
+        } as EggTemplateConfig,
+        inventory: eggSchema.inventory || { total: 0 },
+        productionTypes: eggSchema.productionTypes || []
+      } as EggSchema);
+    } else {
+      setSchema(initialSchema);
+    }
     setIsEditing(false);
+  };
+
+  // ✅ FUNCIÓN HELPER PARA ACTUALIZAR SCHEMA DE FORMA TYPE-SAFE
+  const updateSchemaPrice = (newPrice: number) => {
+    if (schema.type === 'dairy') {
+      const dairySchema = schema as DairySchema;
+      setSchema({
+        ...dairySchema,
+        price: newPrice
+      });
+    } else if (schema.type === 'eggs') {
+      const eggSchema = schema as EggSchema;
+      setSchema({
+        ...eggSchema,
+        price: newPrice
+      });
+    }
   };
 
   const renderSpecificEditor = () => {
     if (schema.type === "dairy") {
+      const dairySchema = schema as DairySchema;
+      
       return isEditing ? (
         <DairyEditor 
-          schema={schema} 
-          onChange={setSchema}
+          schema={dairySchema} 
+          onChange={(updatedSchema) => setSchema(updatedSchema)}
         />
       ) : (
-        <DairyReadOnlyView schema={schema} />
+        <DairyReadOnlyView schema={dairySchema} />
       );
     } else if (schema.type === "eggs") {
+      const eggSchema = schema as EggSchema;
+      
       return isEditing ? (
         <EggsEditor 
-          schema={schema} 
-          onChange={setSchema}
+          schema={eggSchema} 
+          onChange={(updatedSchema) => setSchema(updatedSchema)}
         />
       ) : (
-        <EggsReadOnlyView schema={schema} />
+        <EggsReadOnlyView schema={eggSchema} />
       );
     }
     
+    // ✅ SECCIÓN GENERAL CORREGIDA CON TYPE GUARDS
     return (
       <div className="bg-gray-50 p-4 rounded-lg">
         <h3 className="text-lg font-semibold mb-2">Configuración General</h3>
@@ -74,8 +186,8 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
             {isEditing ? (
               <input
                 type="number"
-                value={schema.price || 0}
-                onChange={(e) => setSchema({...schema, price: Number(e.target.value)})}
+                value={(schema as DairySchema | EggSchema).price || 0}
+                onChange={(e) => updateSchemaPrice(Number(e.target.value))}
                 className="w-full border rounded-md p-2"
                 step="0.01"
                 min="0"
@@ -83,7 +195,7 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
             ) : (
               <input
                 type="number"
-                value={schema.price || 0}
+                value={(schema as DairySchema | EggSchema).price || 0}
                 className="w-full border rounded-md p-2 bg-gray-100"
                 readOnly
               />
@@ -93,7 +205,7 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
             <label className="block text-sm font-medium mb-1">Unidad</label>
             <input
               type="text"
-              value={schema.unit || ""}
+              value={(schema as DairySchema | EggSchema).unit || ""}
               className="w-full border rounded-md p-2 bg-gray-100"
               readOnly
             />
@@ -107,7 +219,9 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
     <div className="space-y-6">
       {/* Header con botones de acción */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Configuración de {schema.type === 'dairy' ? 'Lechería' : 'Huevos'}</h2>
+        <h2 className="text-xl font-semibold">
+          Configuración de {schema.type === 'dairy' ? 'Lechería' : 'Huevos'}
+        </h2>
         
         <div className="flex gap-2">
           {!isEditing ? (
@@ -142,8 +256,35 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
       {isEditing && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <p className="text-yellow-800 text-sm">
-            ⚠️ Modo de edición activo. Los cambios no se guardarán hasta que hagas clic en "Guardar Cambios".
+            ⚠️ Modo de edición activo. Los cambios no se guardarán hasta que hagas clic en &quot;Guardar Cambios&quot;.
           </p>
+        </div>
+      )}
+
+      {/* Información de configuración */}
+      {schema.templateConfig && (
+        <div className="bg-gray-50 p-3 rounded text-xs text-gray-600">
+          <p>Última actualización: {
+            schema.templateConfig.lastUpdated 
+              ? new Date(schema.templateConfig.lastUpdated).toLocaleString('es-ES')
+              : 'No disponible'
+          }</p>
+          <p>Versión: {schema.templateConfig.version || 'No especificada'}</p>
+          
+          {/* Mostrar configuraciones específicas */}
+          {schema.type === 'dairy' && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p>Seguimiento individual: {(schema.templateConfig as DairyTemplateConfig).trackIndividualProduction ? 'Sí' : 'No'}</p>
+              <p>Frecuencia: {(schema.templateConfig as DairyTemplateConfig).productionFrequency || 'Daily'}</p>
+            </div>
+          )}
+          
+          {schema.type === 'eggs' && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p>Seguimiento por tipo: {(schema.templateConfig as EggTemplateConfig).trackByType ? 'Sí' : 'No'}</p>
+              <p>Frecuencia de recolección: {(schema.templateConfig as EggTemplateConfig).collectionFrequency || 'Daily'}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -163,7 +304,7 @@ export default function ConfigTab({ schema: initialSchema, verticalId, loading }
 }
 
 // Componente para vista de solo lectura de Dairy
-function DairyReadOnlyView({ schema }: { schema: any }) {
+function DairyReadOnlyView({ schema }: { schema: DairySchema }) {
   return (
     <div className="space-y-4">
       <div className="bg-blue-50 p-4 rounded-lg">
@@ -188,6 +329,37 @@ function DairyReadOnlyView({ schema }: { schema: any }) {
         </div>
       </div>
 
+      {/* Configuraciones específicas de lechería */}
+      <div className="bg-blue-50 p-3 rounded">
+        <h4 className="text-sm font-medium mb-2">Configuraciones de Producción</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Seguimiento individual:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.trackIndividualProduction ? 'Activado' : 'Desactivado'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Frecuencia:</span>
+            <span className="ml-2 font-medium capitalize">
+              {schema.templateConfig.productionFrequency || 'Diaria'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Ordeños por día:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.milkingTimes || 2}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Métricas de calidad:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.qualityMetrics ? 'Activadas' : 'Desactivadas'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-2">Inventario de Vacas</label>
         <div className="bg-gray-50 p-4 rounded">
@@ -199,7 +371,7 @@ function DairyReadOnlyView({ schema }: { schema: any }) {
             <div>
               <p className="text-sm text-gray-600">Vacas en producción:</p>
               <p className="text-xl font-bold text-green-600">
-                {schema.inventory?.items?.filter((item: any) => item.inProduction !== false).length || 0}
+                {schema.inventory?.items?.filter((item) => item.inProduction !== false).length || 0}
               </p>
             </div>
           </div>
@@ -208,7 +380,7 @@ function DairyReadOnlyView({ schema }: { schema: any }) {
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Lista de Vacas:</h4>
               <div className="max-h-40 overflow-y-auto space-y-1">
-                {schema.inventory.items.map((cow: any) => (
+                {schema.inventory.items.map((cow) => (
                   <div key={cow.id} className="flex items-center justify-between p-2 bg-white rounded border">
                     <div>
                       <span className="font-medium">{cow.name}</span>
@@ -233,7 +405,7 @@ function DairyReadOnlyView({ schema }: { schema: any }) {
 }
 
 // Componente para vista de solo lectura de Eggs
-function EggsReadOnlyView({ schema }: { schema: any }) {
+function EggsReadOnlyView({ schema }: { schema: EggSchema }) {
   return (
     <div className="space-y-4">
       <div className="bg-yellow-50 p-4 rounded-lg">
@@ -258,6 +430,37 @@ function EggsReadOnlyView({ schema }: { schema: any }) {
         </div>
       </div>
 
+      {/* Configuraciones específicas de huevos */}
+      <div className="bg-yellow-50 p-3 rounded">
+        <h4 className="text-sm font-medium mb-2">Configuraciones de Producción</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Seguimiento por tipo:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.trackByType ? 'Activado' : 'Desactivado'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Clasificación:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.eggGradingEnabled ? 'Activada' : 'Desactivada'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Frecuencia de recolección:</span>
+            <span className="ml-2 font-medium capitalize">
+              {schema.templateConfig.collectionFrequency || 'Diaria'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Control de calidad:</span>
+            <span className="ml-2 font-medium">
+              {schema.templateConfig.qualityControl ? 'Activado' : 'Desactivado'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-2">Tipos de Huevos</label>
         <div className="bg-gray-50 p-4 rounded">
@@ -267,7 +470,7 @@ function EggsReadOnlyView({ schema }: { schema: any }) {
           
           {schema.productionTypes && schema.productionTypes.length > 0 && (
             <div className="space-y-2">
-              {schema.productionTypes.map((type: any) => (
+              {schema.productionTypes.map((type) => (
                 <div key={type.id} className="flex items-center justify-between p-2 bg-white rounded border">
                   <div>
                     <span className="font-medium">{type.name}</span>

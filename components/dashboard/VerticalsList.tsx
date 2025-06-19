@@ -6,32 +6,31 @@ import { useRouter } from "next/navigation";
 import Modal from "./Modal";
 import DairyEditor from "./vertical-templates/DairyEditor";
 import EggsEditor from "./vertical-templates/EggsEditor";
+import { VerticalSchema, DairySchema, EggSchema } from "./vertical-detail/types/interfaces"; // ✅ Importar interfaces específicas
 
-// Definir interfaces para tipos
+// ✅ Usar interface tipada en lugar de any
 interface Vertical {
   id: string;
   name: string;
   description: string;
-  variables_schema: any; // admite DairySchema, EggsSchema o esquema genérico
+  variables_schema: VerticalSchema; // ✅ Cambiar any por VerticalSchema
   active: boolean;
   is_template: boolean;
 }
 
-// Eliminamos la interfaz Template redundante y usamos directamente Vertical
-
 interface VerticalProps {
   verticals: Vertical[];
-  templates: Vertical[]; // Usamos Vertical directamente aquí
+  templates: Vertical[];
   businessId: string;
 }
 
-// Actualizar la interfaz FormData
+// ✅ Actualizar FormData para usar schema tipado
 interface FormData {
   name: string;
   description: string;
   unit: string;
   price: number;
-  variables_schema?: any; // Para almacenar el esquema completo especializado
+  variables_schema?: VerticalSchema; // ✅ Cambiar any por VerticalSchema
 }
 
 export default function VerticalsList({ verticals, templates, businessId }: VerticalProps) {
@@ -159,13 +158,23 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
     
     const supabase = createClient();
     
-    // Crear un schema básico si no existe uno especializado
-    const variables_schema = formData.variables_schema || {
+    // ✅ Crear un schema básico tipado si no existe uno especializado
+    const variables_schema: VerticalSchema = formData.variables_schema || {
+      type: 'dairy', // Valor por defecto, se puede cambiar según necesidad
       unit: formData.unit,
-      price: Number(formData.price)
-    };
+      price: Number(formData.price),
+      templateConfig: {
+        lastUpdated: new Date().toISOString(),
+        version: "1.0.0",
+        customFields: {},
+        trackIndividualProduction: true,
+        productionFrequency: 'daily',
+        milkingTimes: 2,
+        qualityMetrics: false
+      }
+    } as DairySchema;
     
-    // Asegurarse de actualizar las propiedades básicas si existe un schema especializado
+    // Actualizar las propiedades básicas
     if (variables_schema) {
       variables_schema.unit = formData.unit;
       variables_schema.price = Number(formData.price);
@@ -218,37 +227,93 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
     }
   };
 
+  // ✅ Función corregida para evitar el error de spread
   const addFromTemplate = async (template: Vertical) => {
     setLoading(true);
     
     try {
-      // Prepara el esquema según el tipo de plantilla
-      let modifiedSchema = { ...template.variables_schema };
+      // ✅ Verificar que template.variables_schema existe y es un objeto válido
+      if (!template.variables_schema || typeof template.variables_schema !== 'object') {
+        throw new Error('Schema de plantilla inválido');
+      }
+
+      let modifiedSchema: VerticalSchema;
       
       if (template.variables_schema.type === "dairy") {
+        // ✅ Type assertion y construcción explícita para dairy
+        const dairyTemplate = template.variables_schema as DairySchema;
         modifiedSchema = {
-          ...modifiedSchema,
+          type: "dairy",
+          unit: dairyTemplate.unit,
+          price: dairyTemplate.price,
+          templateConfig: {
+            lastUpdated: new Date().toISOString(),
+            version: "1.0.0",
+            customFields: {},
+            trackIndividualProduction: true,
+            productionFrequency: 'daily',
+            milkingTimes: 2,
+            qualityMetrics: false,
+            ...dairyTemplate.templateConfig
+          },
           inventory: {
-            total: 0,
+            items: [] // Inicializar con array vacío para nueva instancia
+          },
+          cowProductionHistory: []
+        } as DairySchema;
+        
+      } else if (template.variables_schema.type === "eggs") {
+        // ✅ Type assertion y construcción explícita para eggs
+        const eggTemplate = template.variables_schema as EggSchema;
+        modifiedSchema = {
+          type: "eggs",
+          unit: eggTemplate.unit,
+          price: eggTemplate.price,
+          templateConfig: {
+            lastUpdated: new Date().toISOString(),
+            version: "1.0.0",
+            customFields: {},
+            trackByType: true,
+            eggGradingEnabled: false,
+            collectionFrequency: 'daily',
+            qualityControl: false,
+            ...eggTemplate.templateConfig
+          },
+          inventory: {
+            total: 0 // Inicializar con 0 para nueva instancia
+          },
+          productionTypes: eggTemplate.productionTypes ? [...eggTemplate.productionTypes] : [],
+          eggProductionHistory: []
+        } as EggSchema;
+        
+      } else {
+        // ✅ Schema genérico por defecto (fallback)
+        const genericSchema = template.variables_schema as VerticalSchema;
+        modifiedSchema = {
+          type: 'dairy', // Tipo por defecto
+          unit: genericSchema.unit || 'litros',
+          price: genericSchema.price || 0,
+          templateConfig: {
+            lastUpdated: new Date().toISOString(),
+            version: "1.0.0",
+            customFields: {},
+            trackIndividualProduction: true,
+            productionFrequency: 'daily',
+            milkingTimes: 2,
+            qualityMetrics: false
+          },
+          inventory: {
             items: []
           }
-        };
-      } else if (template.variables_schema.type === "eggs") {
-        modifiedSchema = {
-          ...modifiedSchema,
-          inventory: {
-            total: 0
-          },
-          productionTypes: template.variables_schema.productionTypes || []
-        };
+        } as DairySchema;
       }
       
       // Cargar los datos de la plantilla en el formulario
       setFormData({
         name: template.name,
         description: template.description || "",
-        unit: template.variables_schema?.unit || "",
-        price: template.variables_schema?.price || 0,
+        unit: modifiedSchema.unit,
+        price: modifiedSchema.price,
         variables_schema: modifiedSchema
       });
       
@@ -465,7 +530,7 @@ export default function VerticalsList({ verticals, templates, businessId }: Vert
                   </div>
                   <Plus size={20} className="text-green-600" />
                 </div>
-                <div className="mt-2 text-sm">
+                <div className="mt-2 text-small">
                   <span className="text-gray-600">
                     {template.variables_schema?.unit} a ${template.variables_schema?.price}
                   </span>

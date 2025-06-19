@@ -1,21 +1,12 @@
 import { useState, useMemo } from "react";
+import { VerticalSchema, DairySchema, CowStats, CowData } from "../types/interfaces";
 
-interface CowData {
-  id: string;
-  name: string;
-  production_average?: number;
-  last_production?: number;
-  trend?: string;
-  status?: string;
-  comments?: string;
-}
-
-export const useCowAnalysis = (schema: any) => {
+export const useCowAnalysis = (schema: VerticalSchema) => {
   const [selectedCow, setSelectedCow] = useState<CowData | null>(null);
   const [showCowModal, setShowCowModal] = useState(false);
 
   // Función para calcular tendencia
-  const calculateTrend = (values: number[]) => {
+  const calculateTrend = (values: number[]): 'increasing' | 'decreasing' | 'stable' => {
     if (values.length < 2) return 'stable';
     
     const firstHalf = values.slice(0, Math.floor(values.length/2));
@@ -32,18 +23,27 @@ export const useCowAnalysis = (schema: any) => {
 
   // Calcular datos de producción para cada vaca
   const cowStats = useMemo(() => {
-    if (schema.type !== "dairy" || !schema.cowProductionHistory?.length) {
+    if (schema.type !== "dairy") {
       return [];
     }
     
-    const cowStatsMap = new Map();
+    const dairySchema = schema as DairySchema;
     
-    schema.cowProductionHistory.forEach((record: any) => {
+    if (!dairySchema.cowProductionHistory?.length) {
+      return [];
+    }
+    
+    const cowStatsMap = new Map<string, CowStats>();
+    
+    dairySchema.cowProductionHistory.forEach((record) => {
       if (!record.production) return;
       
-      record.production.forEach((cow: any) => {
+      record.production.forEach((cow) => {
         if (!cowStatsMap.has(cow.id)) {
-          const cowInfo = schema.inventory?.items?.find((c: any) => c.id === cow.id) || { name: cow.name };
+          const cowInfo = dairySchema.inventory?.items?.find((c) => c.id === cow.id) || { 
+            id: cow.id, 
+            name: cow.name 
+          };
           
           cowStatsMap.set(cow.id, { 
             id: cow.id,
@@ -52,14 +52,18 @@ export const useCowAnalysis = (schema: any) => {
             totalLiters: 0, 
             count: 0,
             records: [],
+            avgProduction: 0,
+            lastProduction: 0,
+            trend: 'stable',
             comments: cowInfo.comments || ""
           });
         }
         
-        const stats = cowStatsMap.get(cow.id);
+        const stats = cowStatsMap.get(cow.id)!;
         stats.totalLiters += Number(cow.liters || 0);
         stats.count++;
         stats.records.push({
+          id: `${record.date}-${cow.id}`,
           date: record.date,
           liters: Number(cow.liters || 0)
         });
@@ -71,16 +75,16 @@ export const useCowAnalysis = (schema: any) => {
         ...cow,
         avgProduction: cow.count > 0 ? cow.totalLiters / cow.count : 0,
         lastProduction: cow.records.length > 0 ? 
-          cow.records.sort((a: any, b: any) => 
+          cow.records.sort((a, b) => 
             new Date(b.date).getTime() - new Date(a.date).getTime()
           )[0]?.liters || 0 : 0,
         trend: cow.records.length > 1 ? 
-          calculateTrend(cow.records.map((r: any) => r.liters).slice(-7)) : 'stable'
+          calculateTrend(cow.records.map((r) => r.liters).slice(-7)) : 'stable' as const
       }))
       .sort((a, b) => b.avgProduction - a.avgProduction);
   }, [schema]);
 
-  const handleCowClick = (cow: any) => {
+  const handleCowClick = (cow: CowStats) => {
     const cowData: CowData = {
       id: cow.id,
       name: cow.name,

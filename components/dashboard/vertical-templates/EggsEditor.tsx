@@ -1,163 +1,229 @@
 "use client";
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
-
-export interface EggsSchema {
-  type: "eggs";
-  unit: string;
-  price: number;
-  inventory: {
-    total: number;
-  };
-  productionTypes: Array<{
-    id: string;
-    name: string;
-    price: number;
-    description?: string;
-  }>;
-  templateConfig: {
-    trackByType: boolean;
-    productionFrequency: string;
-  };
-}
+import { EggSchema } from "../vertical-detail/types/interfaces";
 
 interface EggsEditorProps {
-  schema: EggsSchema;
-  onChange: (schema: EggsSchema) => void;
+  schema: EggSchema;
+  onChange: (schema: EggSchema) => void;
 }
 
 export default function EggsEditor({ schema, onChange }: EggsEditorProps) {
-  const [newTypeName, setNewTypeName] = useState("");
-  const [newTypePrice, setNewTypePrice] = useState<number>(0);
-  const [newTypeDescription, setNewTypeDescription] = useState("");
-
-  // Actualiza cualquier valor en el esquema
-  const updateSchema = (newValues: Partial<EggsSchema>) => {
-    onChange({ ...schema, ...newValues });
-  };
-
-  // Agrega un nuevo tipo de huevo
-  const addEggType = () => {
-    if (!newTypeName.trim()) return;
-    
-    const newType = {
-      id: `egg-${Date.now()}`,
-      name: newTypeName,
-      price: newTypePrice,
-      description: newTypeDescription || undefined
-    };
-    
-    const newTypes = [...(schema.productionTypes || []), newType];
-    
-    updateSchema({
-      productionTypes: newTypes
-    });
-    
-    setNewTypeName("");
-    setNewTypePrice(0);
-    setNewTypeDescription("");
-  };
-
-  // Elimina un tipo de huevo
-  const removeEggType = (typeId: string) => {
-    const newTypes = schema.productionTypes?.filter(type => type.id !== typeId) || [];
-    updateSchema({ productionTypes: newTypes });
-  };
-
   return (
     <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium mb-1">Precio base por huevo</label>
-        <input
-          type="number"
-          value={schema.price}
-          onChange={(e) => updateSchema({ price: Number(e.target.value) })}
-          className="w-full border rounded-md p-2"
-          min="0"
-          step="0.01"
-        />
-      </div>
+      <div className="bg-yellow-50 p-4 rounded-lg">
+        <h3 className="text-lg font-semibold mb-4">Editor de Configuración - Huevos</h3>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Total de gallinas</label>
-        <input
-          type="number"
-          value={schema.inventory?.total || 0}
-          onChange={(e) => 
-            updateSchema({ 
-              inventory: { 
-                ...schema.inventory, 
-                total: Number(e.target.value) 
-              } 
-            })
-          }
-          className="w-full border rounded-md p-2"
-          min="0"
-        />
-      </div>
-
-      <div className="border-t pt-4">
-        <h3 className="text-lg font-medium mb-3">Tipos de Huevos</h3>
-        
-        <div className="space-y-4 mb-4">
-          {schema.productionTypes?.map(eggType => (
-            <div key={eggType.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{eggType.name}</p>
-                  <span className="text-sm text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                    ${eggType.price.toFixed(2)}
-                  </span>
-                </div>
-                {eggType.description && (
-                  <p className="text-sm text-gray-500">{eggType.description}</p>
-                )}
-              </div>
-              <button 
-                onClick={() => removeEggType(eggType.id)}
-                className="text-red-500 hover:text-red-700"
-                type="button"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t pt-4">
-          <h4 className="text-sm font-medium mb-2">Agregar Nuevo Tipo de Huevo</h4>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <input
-              type="text"
-              placeholder="Nombre (ej. AA)"
-              value={newTypeName}
-              onChange={(e) => setNewTypeName(e.target.value)}
-              className="col-span-2 border rounded-md p-2"
-            />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Precio promedio</label>
             <input
               type="number"
-              placeholder="Precio"
-              value={newTypePrice}
-              onChange={(e) => setNewTypePrice(Number(e.target.value))}
-              className="border rounded-md p-2"
-              min="0"
+              value={schema.price}
+              onChange={(e) => onChange({ ...schema, price: Number(e.target.value) })}
+              className="w-full border rounded-md p-2"
               step="0.01"
+              min="0"
             />
           </div>
-          <div className="flex gap-2">
-            <textarea
-              placeholder="Descripción (opcional)"
-              value={newTypeDescription}
-              onChange={(e) => setNewTypeDescription(e.target.value)}
-              className="flex-1 border rounded-md p-2 h-12"
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Total de gallinas</label>
+            <input
+              type="number"
+              value={schema.inventory?.total || 0}
+              onChange={(e) =>
+                onChange({
+                  ...schema,
+                  inventory: {
+                    ...schema.inventory,
+                    total: Number(e.target.value),
+                  },
+                })
+              }
+              className="w-full border rounded-md p-2"
+              min="0"
             />
-            <button 
-              onClick={addEggType}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              disabled={!newTypeName.trim()}
-              type="button"
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <h4 className="text-md font-medium mb-2">Configuraciones de Producción</h4>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={schema.templateConfig.trackByType}
+                  onChange={(e) =>
+                    onChange({
+                      ...schema,
+                      templateConfig: {
+                        ...schema.templateConfig,
+                        trackByType: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                <span className="text-sm">Seguimiento por tipo de huevo</span>
+              </label>
+            </div>
+
+            <div>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={schema.templateConfig.eggGradingEnabled}
+                  onChange={(e) =>
+                    onChange({
+                      ...schema,
+                      templateConfig: {
+                        ...schema.templateConfig,
+                        eggGradingEnabled: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                <span className="text-sm">Clasificación de huevos</span>
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Frecuencia de recolección</label>
+              <select
+                value={schema.templateConfig.collectionFrequency}
+                onChange={(e) =>
+                  onChange({
+                    ...schema,
+                    templateConfig: {
+                      ...schema.templateConfig,
+                      collectionFrequency: e.target.value as "daily" | "twice-daily" | "custom",
+                    },
+                  })
+                }
+                className="w-full border rounded-md p-2"
+              >
+                <option value="daily">Diaria</option>
+                <option value="twice-daily">Dos veces al día</option>
+                <option value="custom">Personalizada</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={schema.templateConfig.qualityControl}
+                  onChange={(e) =>
+                    onChange({
+                      ...schema,
+                      templateConfig: {
+                        ...schema.templateConfig,
+                        qualityControl: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                <span className="text-sm">Control de calidad</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <h4 className="text-md font-medium mb-2">Tipos de Huevos</h4>
+          <div className="bg-white p-4 rounded border">
+            <p className="text-sm text-gray-600 mb-2">
+              Tipos configurados: {schema.productionTypes?.length || 0}
+            </p>
+
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {schema.productionTypes?.map((type, index) => (
+                <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div className="flex-1 mr-4">
+                    <input
+                      type="text"
+                      value={type.name}
+                      onChange={(e) => {
+                        const updatedTypes = [...(schema.productionTypes || [])];
+                        updatedTypes[index] = { ...type, name: e.target.value };
+                        onChange({
+                          ...schema,
+                          productionTypes: updatedTypes,
+                        });
+                      }}
+                      className="w-full border rounded p-1 text-sm"
+                      placeholder="Nombre del tipo"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      value={type.price}
+                      onChange={(e) => {
+                        const updatedTypes = [...(schema.productionTypes || [])];
+                        updatedTypes[index] = { ...type, price: Number(e.target.value) };
+                        onChange({
+                          ...schema,
+                          productionTypes: updatedTypes,
+                        });
+                      }}
+                      className="w-20 border rounded p-1 text-sm"
+                      step="0.01"
+                      min="0"
+                    />
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={type.active}
+                        onChange={(e) => {
+                          const updatedTypes = [...(schema.productionTypes || [])];
+                          updatedTypes[index] = { ...type, active: e.target.checked };
+                          onChange({
+                            ...schema,
+                            productionTypes: updatedTypes,
+                          });
+                        }}
+                      />
+                      <span className="ml-1 text-xs">Activo</span>
+                    </label>
+                    <button
+                      onClick={() => {
+                        const updatedTypes = schema.productionTypes?.filter((_, i) => i !== index) || [];
+                        onChange({
+                          ...schema,
+                          productionTypes: updatedTypes,
+                        });
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                      title="Eliminar tipo"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )) || (
+                <p className="text-gray-500 text-center py-4">No hay tipos de huevos configurados</p>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                const newType = {
+                  id: `type-${Date.now()}`,
+                  name: `Tipo ${(schema.productionTypes?.length || 0) + 1}`,
+                  price: 0,
+                  active: true,
+                  description: "",
+                };
+
+                onChange({
+                  ...schema,
+                  productionTypes: [...(schema.productionTypes || []), newType],
+                });
+              }}
+              className="mt-2 bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
             >
-              Agregar
+              + Agregar Tipo
             </button>
           </div>
         </div>

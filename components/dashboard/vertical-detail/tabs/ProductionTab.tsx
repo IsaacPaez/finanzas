@@ -2,11 +2,12 @@ import ProductionFilters from "../components/ProductionFilters";
 import ProductionChart from "../components/ProductionChart";
 import ProductionTable from "../components/ProductionTable";
 import { useProductionData } from "../hooks/useProductionData";
+import { Movement, VerticalSchema, Vertical } from "../types/interfaces";
 
 interface ProductionTabProps {
-  vertical: any;
-  schema: any;
-  movements: any[];
+  vertical: Vertical;
+  schema: VerticalSchema;
+  movements: Movement[];
 }
 
 export default function ProductionTab({ vertical, schema, movements }: ProductionTabProps) {
